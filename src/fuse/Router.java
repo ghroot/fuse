@@ -1149,15 +1149,15 @@ public class Router implements Node {
 	}
 
 	public static class Part {
-		String salt;
+		public String salt;
 		public String name;
-		Position position;
+		public Position position;
 		Rotation rotation;
 		Velocity velocity;
 	}
 
 	public static class Position {
-		float x, y, z;
+		public float x, y, z;
 
 		public String toString() {
 			return x + "," + y + "," + z;
