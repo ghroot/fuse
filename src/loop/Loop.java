@@ -22,6 +22,7 @@ public class Loop implements IGameListener, Runnable {
 		WorldConfiguration config = new WorldConfigurationBuilder().with(
 			new PathRuleProcessingSystem(),
 			new PathSystem(),
+			new MakeRuleProcessingSystem(),
 			new PositionSyncSystem()
 		).build();
 		world = new World(config);
