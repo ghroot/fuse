@@ -4,9 +4,7 @@ import java.io.File;
 import java.net.URLEncoder;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.LinkedList;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
@@ -25,11 +23,11 @@ public class Router implements Node {
 	public static boolean debug = true;
 	public static String hash = "sha-256";
 	public static String data = "root.rupy.se";
-	public static String fuse = "fuse.rupy.se"; // So .js cross domain connects to the right node; does not work with IE with XDR.
+	public static String fuse = "localhost:8000"; // So .js cross domain connects to the right node; does not work with IE with XDR.
 	public static String path = "fuse.rupy.se"; // So the modular .js will load from the right domain.
 	public static String what = "92.63.174.125";
 	public static int time = 30;
-	
+
 	public static ConcurrentLinkedDeque score = new ConcurrentLinkedDeque();
 
 	ConcurrentHashMap users = new ConcurrentHashMap();
@@ -42,7 +40,7 @@ public class Router implements Node {
 	static Node node;
 
 	private static String head() {
-		//System.out.println(data);
+		// System.out.println(data);
 		return "Head:less\r\nHost:" + data; // Head:less\r\n
 	}
 
@@ -66,9 +64,12 @@ public class Router implements Node {
 		names.put(name, user);
 
 		// This uses host.rupy.se specific MaxMind GeoLiteCity.dat
-		JSONObject country = new JSONObject((String) daemon.send(null, "{\"type\":\"country\",\"ip\":\"" + event.remote() + "\"}"));
-		if(!country.getString("code").equals("--"))
-			user.flag = country.getString("code").toLowerCase();
+        try {
+            JSONObject country = new JSONObject((String) daemon.send(null, "{\"type\":\"country\",\"ip\":\"" + event.remote() + "\"}"));
+            if (!country.getString("code").equals("--"))
+                user.flag = country.getString("code").toLowerCase();
+        }
+        catch(Exception e) {}
 		// End
 
 		return user;
@@ -134,7 +135,7 @@ public class Router implements Node {
 		if(split[0].equals("time")) {
 			return "time|done|" + System.currentTimeMillis(); // TODO: this needs timezone!
 		}
-		
+
 		if(split[0].equals("user")) {
 			final boolean name = split.length > 1 && split[1].length() > 0;
 			final boolean pass = split.length > 2 && split[2].length() > 0;
@@ -234,7 +235,7 @@ public class Router implements Node {
 						user.auth(json);
 
 						salts.put("" + user.id, user.salt);
-						
+
 						event.query().put("done", "user|done|" + user.salt + "|" + key + "|" + Root.hash(key));
 					}
 
@@ -293,7 +294,7 @@ public class Router implements Node {
 						user.auth(json);
 
 						salts.put("" + user.id, user.salt);
-						
+
 						event.query().put("done", "sign|done|" + user.name);
 					}
 					catch(Exception e) {
@@ -470,7 +471,7 @@ public class Router implements Node {
 		else if(split[0].equals("ally")) {
 			final User poll = (User) names.get(split[2]);
 			String info = split.length > 3 ? "|" + split[3] : "";
-			
+
 			if(poll == null) {
 				return "ally|fail|user not online";
 			}
@@ -478,8 +479,8 @@ public class Router implements Node {
 			if(user.ally(poll)) {
 				Async.Work work = new Async.Work(event) {
 					public void send(Async.Call call) throws Exception {
-						call.post("/meta", head(), 
-								("pkey=" + user.json.getString("key") + "&ckey=" + poll.json.getString("key") + 
+						call.post("/meta", head(),
+								("pkey=" + user.json.getString("key") + "&ckey=" + poll.json.getString("key") +
 										"&ptype=user&ctype=user&json={}&tear=true").getBytes("utf-8"));
 					}
 
@@ -545,10 +546,10 @@ public class Router implements Node {
 		else if(split[0].equals("list")) {
 			final String list = split[2];
 			String type = null;
-			
+
 			if(split.length > 3)
 				type = split[3];
-			
+
 			if(list.equals("room")) {
 				if(type == null) {
 					StringBuilder builder = new StringBuilder("list|done|room|");
@@ -726,8 +727,8 @@ public class Router implements Node {
 				else if(type.equals("ally")) {
 					Async.Work work = new Async.Work(event) {
 						public void send(Async.Call call) throws Exception {
-							call.post("/meta", head(), 
-									("pkey=" + user.json.getString("key") + "&ckey=" + poll.json.getString("key") + 
+							call.post("/meta", head(),
+									("pkey=" + user.json.getString("key") + "&ckey=" + poll.json.getString("key") +
 											"&ptype=user&ctype=user&json={}&echo=true").getBytes("utf-8"));
 						}
 
@@ -867,8 +868,8 @@ public class Router implements Node {
 
 			Async.Work work = new Async.Work(event) {
 				public void send(Async.Call call) throws Exception {
-					call.post("/meta", head(), 
-							("pkey=" + user.json.getString("key") + "&ckey=" + name + 
+					call.post("/meta", head(),
+							("pkey=" + user.json.getString("key") + "&ckey=" + name +
 									"&ptype=user&ctype=item&json=" + save).getBytes("utf-8"));
 				}
 
@@ -915,8 +916,8 @@ public class Router implements Node {
 
 			Async.Work work = new Async.Work(event) {
 				public void send(Async.Call call) throws Exception {
-					call.post("/meta", head(), 
-							("pkey=" + user.json.getString("key") + "&ckey=" + item.name + 
+					call.post("/meta", head(),
+							("pkey=" + user.json.getString("key") + "&ckey=" + item.name +
 									"&ptype=user&ctype=item&json=" + save).getBytes("utf-8"));
 				}
 
@@ -972,8 +973,8 @@ public class Router implements Node {
 
 			Async.Work work = new Async.Work(event) {
 				public void send(Async.Call call) throws Exception {
-					call.post("/meta", head(), 
-							("pkey=" + user.json.getString("key") + "&ckey=" + name + 
+					call.post("/meta", head(),
+							("pkey=" + user.json.getString("key") + "&ckey=" + name +
 									"&ptype=user&ctype=" + type + (tear ? "&tear=true" : "&json=" + json)).getBytes("utf-8"));
 				}
 
@@ -1007,10 +1008,10 @@ public class Router implements Node {
 
 			if(type.equals("soft")) {
 				String salt = null;
-				
+
 				if(!split[0].equals("load")) {
 					salt = (String) salts.get(split[2]);
-				
+
 					if(salt == null) {
 						return split[0] + "|fail|id not found";
 					}
@@ -1020,13 +1021,13 @@ public class Router implements Node {
 				}
 
 				User target = (User) users.get(salt);
-				
+
 				if(target == null) {
 					return split[0] + "|fail|salt not found";
 				}
 
 				JSONObject soft = target.data(target.soft, name);
-				
+
 				if(soft != null)
 					return split[0] + "|done|" + soft;
 				else
@@ -1091,7 +1092,7 @@ public class Router implements Node {
 
 				if(item.position == null)
 					item.position = new Position();
-				
+
 				item.position.x = Float.parseFloat(show[2]);
 				item.position.y = Float.parseFloat(show[3]);
 				item.position.z = Float.parseFloat(show[4]);
@@ -1108,30 +1109,30 @@ public class Router implements Node {
 		}
 		else if(split[0].equals("move")) {
 			user.room.send(user, "move|" + user.name + "|" + split[2]);
-			
+
 			String[] all = split[2].split(";");
 			String[] pos = all[0].split(",");
-			
+
 			if(user.position == null)
 				user.position = new Position();
-			
+
 			user.position.x = Float.parseFloat(pos[0]);
 			user.position.y = Float.parseFloat(pos[1]);
 			user.position.z = Float.parseFloat(pos[2]);
-			
+
 			String[] rot = all[1].split(",");
-			
+
 			if(user.rotation == null)
 				user.rotation = new Rotation();
-			
+
 			user.rotation.x = Float.parseFloat(rot[0]);
 			user.rotation.y = Float.parseFloat(rot[1]);
 			user.rotation.z = Float.parseFloat(rot[2]);
 			user.rotation.w = Float.parseFloat(rot[3]);
-			
+
 			user.action = all[2];
-			
-			return "move|done";	
+
+			return "move|done";
 		}
 
 		return "main|fail|rule not found";
@@ -1139,7 +1140,7 @@ public class Router implements Node {
 
 	public static class Part {
 		String salt;
-		String name;
+		public String name;
 		Position position;
 		Rotation rotation;
 		Velocity velocity;
@@ -1147,33 +1148,33 @@ public class Router implements Node {
 
 	public static class Position {
 		float x, y, z;
-		
+
 		public String toString() {
 			return x + "," + y + "," + z;
 		}
 	}
-	
+
 	public static class Rotation {
 		float x, y, z, w;
-		
+
 		public String toString() {
 			return x + "," + y + "," + z + "," + w;
 		}
 	}
-	
+
 	public static class Velocity {
 		float x, y, z;
-		
+
 		public String toString() {
 			return x + "," + y + "," + z;
 		}
 	}
-	
+
 	public static class Item extends Part {
 		int id;
 		int count;
 		String data;
-		
+
 		public Item(String name, String data) {
 			this.name = name;
 			this.data = data;
@@ -1184,39 +1185,39 @@ public class Router implements Node {
 			this.count = data;
 			this.data = "" + data;
 		}
-		
+
 		public void position(Position pos) {
 			if(pos == null)
 				pos = new Position();
-			
+
 			if(position == null)
 				position = new Position();
-			
+
 			position.x = pos.x;
 			position.y = pos.y;
 			position.z = pos.z;
 		}
-		
+
 		public void rotation(Rotation rot) {
 			if(rot == null)
 				rot = new Rotation();
-			
+
 			if(rotation == null)
 				rotation = new Rotation();
-			
+
 			rotation.x = rot.x;
 			rotation.y = rot.y;
 			rotation.z = rot.z;
 			rotation.w = rot.w;
 		}
-		
+
 		public void velocity(Velocity vel) {
 			if(vel == null)
 				vel = new Velocity();
-			
+
 			if(velocity == null)
 				velocity = new Velocity();
-			
+
 			velocity.x = vel.x;
 			velocity.y = vel.y;
 			velocity.z = vel.z;
@@ -1231,7 +1232,7 @@ public class Router implements Node {
 				item.velocity = velocity;
 			return item;
 		}
-		
+
 		public String toString() {
 			if(velocity != null && rotation != null)
 				return salt + "," + name + "," + data + "," + position + "," + rotation + "," + velocity; // 13
@@ -1261,10 +1262,10 @@ public class Router implements Node {
 		LinkedList ally = new LinkedList();
 		String nick, flag, poll, type;
 		boolean sign, away;
-		Game game;
-		Room room;
+		public Game game;
+		public Room room;
 		int lost;
-		long id;
+		public long id;
 
 		User(String name, String salt) throws Exception {
 			this.name = name;
@@ -1292,7 +1293,7 @@ public class Router implements Node {
 
 			if(json == null) {
 				JSONArray a = new JSONArray();
-				
+
 				for(int i = 0; i < list.length(); i++) {
 					JSONObject item = list.getJSONObject(i);
 					String[] names = JSONObject.getNames(item);
@@ -1301,7 +1302,7 @@ public class Router implements Node {
 						a.put(new JSONObject("{\"" + names[0] + "\": " + item.getJSONObject(names[0]) + "}"));
 					}
 				}
-				
+
 				type.put("list", a);
 			}
 			else {
@@ -1314,7 +1315,7 @@ public class Router implements Node {
 					}
 				}
 			}
-			
+
 			return type;
 		}
 
@@ -1472,13 +1473,13 @@ public class Router implements Node {
 			this.type = type;
 			this.size = size;
 		}
-		
+
 		Room(String name, String type, int size) {
 			this.name = name;
 			this.type = type;
 			this.size = size;
 		}
-		
+
 		synchronized Item add(Item item) throws Exception {
 			String salt = Event.random(4);
 
@@ -1522,7 +1523,7 @@ public class Router implements Node {
 			send(from, data, false);
 		}
 
-		void send(User from, String data, boolean all) throws Exception {
+		public void send(User from, String data, boolean all) throws Exception {
 			Iterator it = users.values().iterator();
 
 			if(data.startsWith("play"))
@@ -1764,10 +1765,10 @@ public class Router implements Node {
 
 		if(debug)
 			System.err.println("quit " + place + " " + user + " " + salt); // + " " + stack(Thread.currentThread()));
-		
+
 		if(place == 6 && user == null)
 			throw new Exception("Prune salt " + salt);
-		
+
 		users.remove(salt);
 
 		if(user != null && user.salt != null && user.game != null) {
