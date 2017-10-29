@@ -14,15 +14,14 @@ public class Loop implements IGameListener, Runnable {
 	private boolean alive = true;
 	private World world;
 
-	private List<QueuedRule> queuedRules = new ArrayList<QueuedRule>();
-
 	private ComponentMapper<Transform> transformMapper;
 	private ComponentMapper<Path> pathMapper;
 	private ComponentMapper<Fuse> fuseMapper;
 
 	public Loop() {
 		WorldConfiguration config = new WorldConfigurationBuilder().with(
-			new PathSystem(queuedRules),
+			new PathRuleProcessingSystem(),
+			new PathSystem(),
 			new PositionSyncSystem()
 		).build();
 		world = new World(config);
@@ -49,19 +48,32 @@ public class Loop implements IGameListener, Runnable {
 
 	public void gameLeft(Router.User user) {
 		EntitySubscription subscription = world.getAspectSubscriptionManager().get(Aspect.all(Fuse.class));
-		int entity = subscription.getEntities().get(0);
-		world.delete(entity);
+		for (int entity : subscription.getEntities().getData()) {
+			Fuse fuse = fuseMapper.get(entity);
+			if (fuse.user.equals(user)) {
+				world.delete(entity);
+				return;
+			}
+		}
 	}
 
 	public String handleRule(Router.User user, String[] data) {
-		EntitySubscription subscription = world.getAspectSubscriptionManager().get(Aspect.all(Fuse.class));
-		if (subscription.getEntities().isEmpty()) {
-			return data[0] + "|fail|internal error: entity not found";
+		String rule = data[0];
+		for (BaseSystem system : world.getSystems()) {
+			if (system instanceof RuleProcessingSystem) {
+				RuleProcessingSystem ruleProcessingSystem = (RuleProcessingSystem) system;
+				if (ruleProcessingSystem.canProcessRule(rule)) {
+					EntitySubscription subscription = world.getAspectSubscriptionManager().get(Aspect.all(Fuse.class));
+					for (int entity : subscription.getEntities().getData()) {
+			      Fuse fuse = fuseMapper.get(entity);
+			      if (fuse.user.equals(user)) {
+							return ruleProcessingSystem.processRule(entity, data);
+						}
+					}
+				}
+			}
 		}
-		else {
-			queuedRules.add(new QueuedRule(user, data));
-			return data[0] + "|done";
-		}
+		return null;
 	}
 
 	public void run() {

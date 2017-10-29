@@ -1,5 +1,6 @@
 package loop.system;
 
+import javax.vecmath.*;
 import java.util.*;
 
 import com.artemis.Aspect;
@@ -22,14 +23,15 @@ public class PositionSyncSystem extends IteratingSystem {
     Transform transform = transformMapper.get(entity);
     Fuse fuse = fuseMapper.get(entity);
 
-    if (fuse.lastSyncedPosition == null || !fuse.lastSyncedPosition.equals(transform.position)) {
+    if (!fuse.lastSyncedPosition.equals(transform.position)) {
       try {
         // TODO: Find way to push data to fuse without changing access levels
         fuse.user.room.send(fuse.user, "move|" + fuse.user.name + "|" + transform.position.x + "," + transform.position.y + ",0;0,0,0,0", true);
       } catch (Exception e) {
         e.printStackTrace();
       }
-      fuse.lastSyncedPosition = new Position(transform.position.x, transform.position.y);
+      fuse.lastSyncedPosition.x = transform.position.x;
+      fuse.lastSyncedPosition.y = transform.position.y;
     }
 	}
 }

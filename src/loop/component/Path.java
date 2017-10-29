@@ -1,12 +1,13 @@
 package loop.component;
 
-import com.artemis.Component;
+import javax.vecmath.*;
+import com.artemis.*;
 import loop.*;
 
 public class Path extends Component {
-  public Position targetPosition;
+  public Point2f targetPosition;
 
   public Path() {
-    targetPosition = new Position();
+    targetPosition = new Point2f();
   }
 }

@@ -1,12 +1,13 @@
 package loop.component;
 
-import com.artemis.Component;
+import javax.vecmath.*;
+import com.artemis.*;
 import loop.*;
 
 public class Transform extends Component {
-  public Position position;
+  public Point2f position;
 
   public Transform() {
-    position = new Position();
+    position = new Point2f();
   }
 }
