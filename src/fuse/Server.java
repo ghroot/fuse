@@ -88,7 +88,7 @@ public class Server extends Service implements Node, Runnable {
 			node.call(daemon, this);
 
 			loop = new Loop();
-			// ((Router) node).loop = loop;
+			((Router) node).gameListener = loop;
 			loop.start();
 		}
 

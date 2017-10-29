@@ -39,6 +39,8 @@ public class Router implements Node {
 	static Daemon daemon;
 	static Node node;
 
+	public IGameListener gameListener;
+
 	private static String head() {
 		// System.out.println(data);
 		return "Head:less\r\nHost:" + data; // Head:less\r\n
@@ -359,6 +361,9 @@ public class Router implements Node {
 				Room r = (Room) it.next();
 				r.send(user, "here|stem|" + user.name, true);
 			}
+
+			if (gameListener != null)
+				gameListener.gameJoined(user);
 
 			return "game|done";
 		}
@@ -1134,6 +1139,11 @@ public class Router implements Node {
 
 			return "move|done";
 		}
+		else if (gameListener != null) {
+			String echo = gameListener.handleRule(user, split);
+			if (echo != null)
+				return echo;
+		}
 
 		return "main|fail|rule not found";
 	}
@@ -1782,6 +1792,9 @@ public class Router implements Node {
 			names.remove(user.name);
 			broadcast(user, "gone|root|" + user.name, true);
 		}
+
+		if (gameListener != null)
+			gameListener.gameLeft(user);
 	}
 
 	public void exit() {

@@ -25,7 +25,7 @@ public class PositionSyncSystem extends IteratingSystem {
     if (fuse.lastSyncedPosition == null || !fuse.lastSyncedPosition.equals(transform.position)) {
       try {
         // TODO: Find way to push data to fuse without changing access levels
-        // fuse.user.room.send(fuse.user, "move|" + fuse.user.name + "|" + transform.position.x + "," + transform.position.y + ",0;0,0,0,0", true);
+        fuse.user.room.send(fuse.user, "move|" + fuse.user.name + "|" + transform.position.x + "," + transform.position.y + ",0;0,0,0,0", true);
       } catch (Exception e) {
         e.printStackTrace();
       }
