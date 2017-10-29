@@ -11,6 +11,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import se.rupy.http.*;
 
+import loop.*;
+
 public class Server extends Service implements Node, Runnable {
 	ConcurrentHashMap list;	// The pull streams.
 	Thread thread;			// To purge "noop" messages so proxies don't timeout the connections.
@@ -20,7 +22,9 @@ public class Server extends Service implements Node, Runnable {
 	boolean alive;
 
 	StringBuilder padding = new StringBuilder();
-	
+
+	Loop loop;
+
 	private Queue find(String salt) {
 		Iterator it = list.values().iterator();
 
@@ -46,7 +50,7 @@ public class Server extends Service implements Node, Runnable {
 	public void remove(String salt, boolean silent) throws Exception {
 		// OK
 	}
-	
+
 	public void create(Daemon daemon) throws Exception {
 		ClassLoader loader = Thread.currentThread().getContextClassLoader();
 
@@ -70,7 +74,7 @@ public class Server extends Service implements Node, Runnable {
                 Router.path = host;
             }
         }
-		
+
 		if(!alive) {
             System.out.println(Router.data + " / " + Router.fuse);
 
@@ -82,8 +86,12 @@ public class Server extends Service implements Node, Runnable {
 
 			node = new Router();
 			node.call(daemon, this);
+
+			loop = new Loop();
+			// ((Router) node).loop = loop;
+			loop.start();
 		}
-		
+
 		for(int i = 0; i < 100; i++) {
 			padding.append("          ");
 		}
@@ -110,6 +118,7 @@ public class Server extends Service implements Node, Runnable {
 		broadcast("warn|boot|Please reconnect!", false);
 		alive = false;
 		node.exit();
+		loop.stop();
 	}
 
 	public void call(Daemon daemon, Node node) {
@@ -121,10 +130,10 @@ public class Server extends Service implements Node, Runnable {
 	public String push(Event event, String data) throws Exception {
 		throw new Exception("Nope");
 	}
-	
+
 	public String push(String salt, String data, boolean wake) throws Exception {
 		Queue queue = (Queue) list.get(salt); //find(salt);
-		
+
 		if(queue != null) {
 			queue.add(data);
 
@@ -132,7 +141,7 @@ public class Server extends Service implements Node, Runnable {
 				return null;
 
 			int wakeup = queue.event.reply().wakeup();
-			
+
 			if(wakeup == Reply.CLOSED || wakeup == Reply.COMPLETE) {
 				remove(queue.salt, 1);
 				list.remove(queue.salt);
@@ -144,23 +153,23 @@ public class Server extends Service implements Node, Runnable {
 
 		return null;
 	}
-	
+
 	public int wakeup(String salt) {
 		Queue queue = (Queue) list.get(salt); //find(salt);
 
 		//System.err.println(salt + " " + queue.size());
-		
+
 		if(queue != null) {
 			return queue.event.reply().wakeup();
 		}
-		
+
 		return -2;
 	}
 
 	private void purge(boolean finish) throws Exception {
 		broadcast("noop", finish);
 	}
-	
+
 	public void broadcast(String message, boolean finish) throws Exception {
 		Iterator it = list.values().iterator();
 
@@ -192,13 +201,13 @@ public class Server extends Service implements Node, Runnable {
 				if(data != null || fail != null) {
 					String send = fail == null ? data : fail;
 					String origin = event.query().header("origin");
-					
+
 					if(Router.debug)
 						System.err.println(" <- " + data);
-					
+
 					if(origin != null)
 						event.reply().header("Access-Control-Allow-Origin", origin);
-					
+
 					byte[] body = send.getBytes("UTF-8");
 					Output out = event.reply().output(body.length);
 
@@ -208,26 +217,26 @@ public class Server extends Service implements Node, Runnable {
 
 					event.query().put("done", null);
 					event.query().put("fail", null);
-					
+
 					Router.add(event, send, false);
 				}
 			}
 			else {
 				event.query().put("time", new Long(System.currentTimeMillis()));
-				
+
 				String data = event.string("data");
 				byte[] body = null;
-				
+
 				try {
 					String response = node.push(event, data);
 
 					//if(response.equals("hold"))
 					//	throw event;
-					
+
 					if(!data.startsWith("send") && !data.startsWith("move"))
 						if(Router.debug)
 							System.err.println(" <- " + response);
-					
+
 					body = response.getBytes("UTF-8");
 					Router.add(event, response, false);
 				}
@@ -236,13 +245,13 @@ public class Server extends Service implements Node, Runnable {
 					body = (data.substring(0, 4) + "|fail|" + e.getClass().getSimpleName()).getBytes("UTF-8");
 					Router.add(event, data.substring(0, 4) + "|fail", true);
 				}
-				
+
 				if(body != null) {
 					String origin = event.query().header("origin");
-					
+
 					if(origin != null)
 						event.reply().header("Access-Control-Allow-Origin", origin);
-					
+
 					event.reply().output(body.length).write(body);
 				}
 			}
@@ -263,19 +272,19 @@ public class Server extends Service implements Node, Runnable {
 				if(queue != null && !queue.isEmpty()) {
 					String data = (String) queue.poll();
 					String accept = queue.event.query().header("accept");
-					
+
 					while(data != null) {
 						if(!data.equals("noop") && !data.startsWith("move"))
 							if(Router.debug)
 								System.err.println(queue.salt + " " + data);
-						
+
 						if(accept != null && accept.indexOf("text/event-stream") > -1) {
 							out.print("data: " + data + "\n\n");
 						}
 						else {
 							out.print(data + "\n");
 						}
-						
+
 						data = (String) queue.poll();
 					}
 
@@ -307,30 +316,30 @@ public class Server extends Service implements Node, Runnable {
 			}
 
 			list.put(salt, new Queue(salt, event));
-			
+
 			if(Router.debug)
 				System.err.println("poll " + Router.date.format(new Date()) + " " + salt);
-			
+
 			String accept = event.query().header("accept");
 
 			boolean stream = accept != null && accept.indexOf("text/event-stream") > -1;
-			
+
 			if(stream) {
 				event.reply().type("text/event-stream");
 			}
 
 			String origin = event.query().header("origin");
-			
+
 			if(origin != null)
 				event.reply().header("Access-Control-Allow-Origin", origin);
-			
+
 			event.hold();
-			
+
 			Output out = event.output();
 
 			//String padding = ie ? this.padding.toString() : "";
 			// AVG Anti-Virus buffers the chunks so we need to push a large amount in the beginning for all browser types.
-			
+
 			if(stream) {
 				out.print("data: noop" + this.padding + "\n\n");
 			}
@@ -349,11 +358,11 @@ public class Server extends Service implements Node, Runnable {
 			event.reply().code("302 Found");
 		}
 	}
-	
+
 	private final static char[] ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".toCharArray();
-	
-	/* Ok, so if you use javascript to set the source of an image to animate a sprite some browsers will 
-	 * spam the server with GET requests. Since I want to use the z-index and preload images I don't use 
+
+	/* Ok, so if you use javascript to set the source of an image to animate a sprite some browsers will
+	 * spam the server with GET requests. Since I want to use the z-index and preload images I don't use
 	 * canvas and the only solution around this bug is to inline the images with base64.
 	 */
 	public static class Encode extends Service {
@@ -364,11 +373,11 @@ public class Server extends Service implements Node, Runnable {
 			Output out = event.output();
 			for(int i = 0; i < file.length; i++) {
 				String name = file[i].getName().substring(0, file[i].getName().length() - 4);
-				String base = encode(read(file[i])); 
+				String base = encode(read(file[i]));
 				out.println("<img id=\"" + name + "\" src=\"data:image/png;base64," + base + "\"/>");
 			}
 		}
-		
+
 		class Filter implements FilenameFilter {
 			public boolean accept(File dir, String name) {
 				if(name.endsWith(".png")) {
@@ -377,7 +386,7 @@ public class Server extends Service implements Node, Runnable {
 				return false;
 			}
 		}
-		
+
 		public static byte[] read(File file) throws Exception {
 			RandomAccessFile f = new RandomAccessFile(file, "r");
 			byte[] b = new byte[(int)f.length()];
@@ -385,7 +394,7 @@ public class Server extends Service implements Node, Runnable {
 			f.close();
 			return b;
 		}
-		
+
 	    public static String encode(byte[] buf){
 	        int size = buf.length;
 	        char[] ar = new char[((size + 2) / 3) * 4];
@@ -409,9 +418,9 @@ public class Server extends Service implements Node, Runnable {
 	        return new String(ar);
 	    }
 	}
-	
+
 	/*
-	 * The queue contains the event and the messages 
+	 * The queue contains the event and the messages
 	 * to be sent to the client.
 	 */
 	static class Queue extends ConcurrentLinkedQueue {
